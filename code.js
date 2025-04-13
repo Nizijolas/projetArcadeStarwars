@@ -189,8 +189,9 @@ class Sprite {
 
     // Calcule sa taille
     this.#size = this.#DOM.getBoundingClientRect();
-    if (this.id == "R2D2") this.#pos = new Position(0, 0);
-    else this.#pos = new Position(playground.size.width - this.size.width, 0);
+  
+    this.#pos = new Position(0, 0);
+   
   }
 
   // Place le sprite à une position p donnée
@@ -212,14 +213,21 @@ class Sprite {
     this.#pos = pos;
     if (this.id == "R2D2") {
       //cette partie sert à mettre la vitesse à 0 sur l'axe qui correspond lorque l'on cogne un mur (plus maniable !)
-      if (this.#pos.x == playground.size.width - this.#size.width || this.#pos.x == 0)
+      if (
+        this.#pos.x == playground.size.width - this.#size.width ||
+        this.#pos.x == 0
+      )
         this.#speed.x = 0;
-      if (this.#pos.y == playground.size.height - this.#size.height ||
-        this.pos.y == 0)
+      if (
+        this.#pos.y == playground.size.height - this.#size.height ||
+        this.pos.y == 0
+      )
         this.#speed.y = 0;
     }
   }
-
+  get dom() {
+    return this.#DOM;
+  }
   get pos() {
     return this.#pos;
   }
@@ -262,8 +270,11 @@ class Sprite {
       this.arret = true;
       this.timeBeforeRepop = 450;
       game.points += 100;
+      if ( game.darthvader.start == true && game.run
+      ){
+        game.darthvader.start = false;
+      }
       game.spritesTouched.push(this);
-      console.log(game.spritesTouched);
     }
   }
   restart() {
@@ -277,6 +288,14 @@ class Sprite {
     // Vitesse en pixels par secondes : objet initialement immobile
     // Calcule sa taille
     this.#size = this.#DOM.getBoundingClientRect();
+  }
+  checkPos() {
+    if (this.id == "R2D2") {
+      this.#pos = new Position(0, 0);
+    } else {
+      this.#pos = new Position(playground.size.width - this.size.width, 0);
+    }
+    this.pos = this.#pos;
   }
 }
 class Plane extends Sprite {
@@ -339,21 +358,25 @@ class Darthv extends Sprite {
   waitingTime;
   timeBeforeLosingPointsAgain = 0;
   waiting = false;
+  start = true;
   constructor(id) {
     super(id);
     this.waitingTime = 0;
   }
+
   update(duration) {
-    this.changeSpeed(this.calculateX(), this.calculateY());
-    // il se déplace en direction du R2D2
-    this.pos = this.pos.move(this.speed, duration);
-    let r2Hitbox = game.r2d2.hitbox();
-    if (r2Hitbox.areIntersecting(this.hitbox())) {
-      this.losingPoints();
-    }
-    if (this.waiting) {
-      this.timeBeforeLosingPointsAgain = this.timeBeforeLosingPointsAgain - 1;
-      if (this.timeBeforeLosingPointsAgain == 0) this.waiting = false;
+    if (!this.start) {
+      this.changeSpeed(this.calculateX(), this.calculateY());
+      // il se déplace en direction du R2D2
+      this.pos = this.pos.move(this.speed, duration);
+      let r2Hitbox = game.r2d2.hitbox();
+      if (r2Hitbox.areIntersecting(this.hitbox())) {
+        this.losingPoints();
+      }
+      if (this.waiting) {
+        this.timeBeforeLosingPointsAgain = this.timeBeforeLosingPointsAgain - 1;
+        if (this.timeBeforeLosingPointsAgain == 0) this.waiting = false;
+      }
     }
   }
   calculateX() {
@@ -369,15 +392,19 @@ class Darthv extends Sprite {
   losingPoints() {
     if (game.points >= 49) {
       if (this.timeBeforeLosingPointsAgain == 0) {
-        game.points -= 50;
-        console.log(game.points);
+        game.points -= game.points >= 199 ? 200 : 50;
         this.waiting = true;
         this.timeBeforeLosingPointsAgain = 200;
       }
     }
   }
+  checkPos() {
+    super.checkPos();
+    this.speed.stop();
+  }
 }
 let game = {
+  interval: null,
   run: false,
   tFrameLast: 0,
   points: 0,
@@ -387,28 +414,37 @@ let game = {
 
 // Mise à jour du jeux à la date indiquée
 game.update = function (tFrame) {
-  // Calcule la durée qui s'est passé apres la frame précédente
-  let duration = tFrame - this.tFrameLast;
-  // Met à jour le temps précédent
-  this.tFrameLast = tFrame;
-  // Déplace le robot
-  game.r2d2.update(duration);
-  game.darthvader.update(duration);
-  // Déplace les autres objets
-  for (let sprite of this.sprites) {
-    sprite.update(duration);
-  }
-  let i = 0;
-  for (let sprite of this.spritesTouched) {
-    if (sprite.timeBeforeRepop == 0) {
-      sprite.restart();
-      this.spritesTouched.splice(i, 1);
+  if (game.run) {
+    if (time.hasEnded()) {
+      game.stop();
     } else {
-      sprite.timeBeforeRepop -= 1;
+      if ( game.points == 0 
+      )
+        game.darthvader.start = true;
+      // Calcule la durée qui s'est passé apres la frame précédente
+      let duration = tFrame - this.tFrameLast;
+      // Met à jour le temps précédent
+      this.tFrameLast = tFrame;
+      // Déplace le robot
+      game.r2d2.update(duration);
+      game.darthvader.update(duration);
+      // Déplace les autres objets
+      for (let sprite of this.sprites) {
+        sprite.update(duration);
+      }
+      let i = 0;
+      for (let sprite of this.spritesTouched) {
+        if (sprite.timeBeforeRepop == 0) {
+          sprite.restart();
+          this.spritesTouched.splice(i, 1);
+        } else {
+          sprite.timeBeforeRepop -= 1;
+        }
+        i += 1;
+      }
+      point.innerText = " " + game.points;
     }
-    i += 1;
   }
-  point.innerText = " " + game.points;
 };
 
 // Reaction du jeux à l'enfoncement d'une touche
@@ -437,7 +473,11 @@ game.onkeydown = function (key) {
 
 // Installe la lecture des caractères
 window.onkeydown = function (e) {
-  game.onkeydown(e.key);
+  try {
+    game.onkeydown(e.key);
+  } catch (e) {
+    ("impossible de manipuler le r2 hors du jeu");
+  }
 };
 
 // tFrame est le temps d'appel de l'animation passé à main en ms
@@ -454,66 +494,104 @@ function main(tFrame) {
 // Démmare le jeu
 game.start = function () {
   // lance tous les sprites
-  for (sprite of this.sprites) {
+  for (let sprite of this.sprites) {
     sprite.start();
   }
 };
 
+game.reinit = function () {
+  //fonction si on relance une partie
+  for ( let sprite of this.sprites){
+    sprite.dom.style.visibility = "visible";
+  }
+  game.r2d2.checkPos();
+  game.darthvader.checkPos();
+  game.darthvader.dom.style.visibility = "visible";
+  game.r2d2.dom.style.visibility = "visible";
+  this.tFrameLast = 0;
+  time.time = 120;
+  time.dom.innerText = time.format();
+  game.interval = setInterval(timer, 1000);
+  this.darthvader.start = true;
+  this.run = true;
+  game.start();
+
+  main(0);
+};
 game.stop = function () {
   game.run = false;
+  game.darthvader.dom.style.visibility = "hidden";
+  game.r2d2.dom.style.visibility = "hidden";
+  for ( let sprite of this.sprites){
+    sprite.dom.style.visibility = "hidden";
+  }
+  panelStart.style.visibility = "visible";
+  buttonStart.innerText = "(re)commencer";
+  panelStart.appendChild(scoreFinal);
+  scoreFinal.innerText = "Score final : " + game.points;
+  game.points = 0;
+  clearInterval(game.interval);
 };
 game.init = function () {
-  game.r2d2 = new Sprite("R2D2");
-  game.darthvader = new Darthv("darthvader");
-  // Attend l'initialisation des autres sprites
-  let sprite = new Plane("x_wing");
-  game.sprites.push(sprite);
+  if (game.r2d2 != undefined) {
+    game.reinit();
+  } else {
+    
+    game.r2d2 = new Sprite("R2D2");
+    game.darthvader = new Darthv("darthvader");
+    game.r2d2.checkPos();
+    game.darthvader.checkPos();
+    // Attend l'initialisation des autres sprites
+    let sprite = new Plane("x_wing");
+    game.sprites.push(sprite);
 
-  sprite = new Plane("anakin_starfighter");
-  game.sprites.push(sprite);
+    sprite = new Plane("anakin_starfighter");
+    game.sprites.push(sprite);
 
-  sprite = new Plane("naboo_starfighter");
-  game.sprites.push(sprite);
+    sprite = new Plane("naboo_starfighter");
+    game.sprites.push(sprite);
 
-  sprite = new Plane("obi_wan_starfighter");
-  game.sprites.push(sprite);
+    sprite = new Plane("obi_wan_starfighter");
+    game.sprites.push(sprite);
 
-  this.run = true;
-  this.tFrameLast = 0;
-
-  game.start();
-  main(0); // Début du cycle
+    this.run = true;
+    this.tFrameLast = 0;
+    time.time = 120;
+    time.dom.innerText = time.format();
+    game.interval = setInterval(timer, 1000);
+    game.start();
+    main(0); // Début du cycle
+  }
 };
 
-// L'initialisation est asynchrone donc il faut attendre
-// Il faut que toutes les images soient chargées donc on
-// s'acroche à l'évelment load de window
-window.addEventListener("load", () => {
+const time = {
+  dom: document.getElementById("time"),
+  time: 120,
+  format: function () {
+    let min = Math.floor(this.time / 60).toString();
+    let sec = (this.time % 60).toString();
+    sec = sec.length == 1 ? "0" + sec : sec;
+    return min + " : " + sec;
+  },
+  hasEnded: function () {
+    return this.time == 0;
+  },
+};
+
+function timer() {
+  if (!time.hasEnded()) {
+    time.time--;
+    time.dom.innerText = time.format();
+  }
+}
+const buttonStart = document.getElementById("startButton");
+const panelStart = document.getElementById("start");
+buttonStart.addEventListener("click", function () {
+  panelStart.style.visibility = "hidden";
   game.init();
 });
 
-const time = {
-  dom : document.getElementById("time"),
-  time : 120,
-  end : false,
+const scoreFinal = document.createElement("div");
+scoreFinal.id = "scorefinal";
 
- 
-  format : function(){
-    let min = Math.floor(this.time/ 60).toString();
-    let sec = (this.time%60).toString();
-    sec = sec.length == 1 ? '0'+sec: sec;
-    return min+" : "+sec;
-  }
-}
 
-function timer(){
-  if ( !time.end){
-  time.time --;
-  console.log(time.format());
-  if (time.time == 0){
-    time.end = true;
-  }
-  time.dom.innerText = time.format();
-}
-};
-setInterval(timer, 1000);
