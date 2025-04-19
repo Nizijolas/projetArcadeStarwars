@@ -464,7 +464,7 @@ game.onkeydown = function (key) {
       game.r2d2.changeSpeed(0, delta);
       break;
     case "s":
-      game.run = false;
+      game.stop();
       break;
     default:
     // console.log(key)
