@@ -1,5 +1,5 @@
 
-Window.alert("Le jeu se joue uniquement sur PC & avec les flèches Pas de ZQSD !");
+window.alert("Le jeu se joue uniquement sur PC & avec les flèches Pas de ZQSD !");
 // Notion de Position par rapport à un point fixe
 // C'est une valeur, donc non modifiable
 const point = document.getElementById("point");
